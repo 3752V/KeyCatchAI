@@ -6,6 +6,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:flutter/services.dart';
 
 import 'sample_feature/sample_item_details_view.dart';
 import 'sample_feature/sample_item_list_view.dart';
@@ -78,7 +81,9 @@ class MyApp extends StatelessWidget {
                     return const SampleItemDetailsView();
                   case SampleItemListView.routeName:
                   default:
-                    return RecordingPage();
+                    {
+                      return RecordingPage();
+                    }
                 }
               },
             );
@@ -97,6 +102,7 @@ class RecordingPage extends StatefulWidget {
 class _RecordingPageState extends State<RecordingPage> {
   FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
   bool _isRecording = false;
+  File _savedRecording = File("/does_not_exist");
 
   @override
   void dispose() {
@@ -105,17 +111,25 @@ class _RecordingPageState extends State<RecordingPage> {
   }
 
   void _startRecording() async {
-    requestAudioPermissions();
     try {
+      if (!await requestAudioPermissions()) {
+        print("Permissions not granted");
+        return;
+      }
       Directory tempDir = await getTemporaryDirectory();
-      File filePath = File('${tempDir.path}/audio.aac');
+      File filePath = File('${tempDir.path}/audio.wav');
       await _audioRecorder.openRecorder();
       await _audioRecorder.startRecorder(
         toFile: filePath.path,
-        codec: Codec.aacMP4,
+        codec: Codec.pcm16WAV,
       );
+      //await ScreenBrightness().setScreenBrightness(0.0);
+      //await SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack);
       setState(() {
         _isRecording = true;
+        _savedRecording = filePath;
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => BlackScreen()));
       });
     } catch (err) {
       print('Error starting recording: $err');
@@ -133,15 +147,47 @@ class _RecordingPageState extends State<RecordingPage> {
     }
   }
 
-  void requestAudioPermissions() async {
+  void _analyzeRecording() async {
+    print("Analyzing...");
+    print("recording: $_savedRecording");
+
+    if (!await _savedRecording.exists()) {
+      print("No recording detected");
+    } else {
+      var url = Uri.parse('http://10.0.2.2:5000/upload_audio');
+      var file = _savedRecording;
+      var request = http.MultipartRequest('POST', url);
+      var audioFile = await http.MultipartFile.fromPath('audio', file.path);
+      request.files.add(audioFile);
+      print("Analyzed!");
+      try {
+        print("sending");
+        var response = await request.send();
+        print("sent");
+        if (response.statusCode == 200) {
+          print("audio sent!");
+          print(await response.stream.bytesToString());
+        } else {
+          print("failed to send audio data");
+        }
+      } catch (e) {
+        print("Error when sending request : $e");
+      }
+    }
+  }
+
+  Future<bool> requestAudioPermissions() async {
     if (await Permission.microphone.isDenied) {
       PermissionStatus status = await Permission.microphone.request();
       print('Microphone permission status: $status');
     }
-    if (await Permission.storage.isDenied) {
-      PermissionStatus status = await Permission.storage.request();
+    if (await Permission.manageExternalStorage.isDenied) {
+      PermissionStatus status =
+          await Permission.manageExternalStorage.request();
       print('Storage permission status: $status');
     }
+    return await Permission.microphone.isGranted &&
+        await Permission.manageExternalStorage.isGranted;
   }
 
   @override
@@ -160,8 +206,52 @@ class _RecordingPageState extends State<RecordingPage> {
               onPressed: _isRecording ? _stopRecording : _startRecording,
               child: _isRecording ? Icon(Icons.stop) : Icon(Icons.mic),
             ),
+            SizedBox(height: 50),
+            SizedBox(
+              width: 200,
+              child: FloatingActionButton(
+                onPressed: _analyzeRecording,
+                child: Text("Analyze Recording"),
+              ),
+            )
           ],
         ),
+      ),
+    );
+  }
+}
+
+class BlackScreen extends StatefulWidget {
+  const BlackScreen({super.key});
+
+  @override
+  State<BlackScreen> createState() => _BlackScreenState();
+}
+
+class _BlackScreenState extends State<BlackScreen> {
+  @override
+  void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+        overlays: SystemUiOverlay.values);
+    ScreenBrightness().resetScreenBrightness();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ScreenBrightness().setScreenBrightness(0.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+    return SizedBox.expand(
+      child: GestureDetector(
+        child: Container(
+          color: Colors.black,
+        ),
+        onDoubleTap: () => {Navigator.pop(context)},
       ),
     );
   }
