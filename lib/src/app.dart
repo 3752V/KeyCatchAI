@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'sample_feature/sample_item_details_view.dart';
 import 'sample_feature/sample_item_list_view.dart';
@@ -73,13 +78,91 @@ class MyApp extends StatelessWidget {
                     return const SampleItemDetailsView();
                   case SampleItemListView.routeName:
                   default:
-                    return const SampleItemListView();
+                    return RecordingPage();
                 }
               },
             );
           },
         );
       },
+    );
+  }
+}
+
+class RecordingPage extends StatefulWidget {
+  @override
+  _RecordingPageState createState() => _RecordingPageState();
+}
+
+class _RecordingPageState extends State<RecordingPage> {
+  FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
+  bool _isRecording = false;
+
+  @override
+  void dispose() {
+    _audioRecorder.closeRecorder();
+    super.dispose();
+  }
+
+  void _startRecording() async {
+    requestAudioPermissions();
+    try {
+      Directory tempDir = await getTemporaryDirectory();
+      File filePath = File('${tempDir.path}/audio.aac');
+      await _audioRecorder.openRecorder();
+      await _audioRecorder.startRecorder(
+        toFile: filePath.path,
+        codec: Codec.aacMP4,
+      );
+      setState(() {
+        _isRecording = true;
+      });
+    } catch (err) {
+      print('Error starting recording: $err');
+    }
+  }
+
+  void _stopRecording() async {
+    try {
+      await _audioRecorder.stopRecorder();
+      setState(() {
+        _isRecording = false;
+      });
+    } catch (err) {
+      print('Error stopping recording: $err');
+    }
+  }
+
+  void requestAudioPermissions() async {
+    if (await Permission.microphone.isDenied) {
+      PermissionStatus status = await Permission.microphone.request();
+      print('Microphone permission status: $status');
+    }
+    if (await Permission.storage.isDenied) {
+      PermissionStatus status = await Permission.storage.request();
+      print('Storage permission status: $status');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Audio Recorder'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            _isRecording ? Text('Recording...') : Text('Not recording'),
+            SizedBox(height: 20),
+            FloatingActionButton(
+              onPressed: _isRecording ? _stopRecording : _startRecording,
+              child: _isRecording ? Icon(Icons.stop) : Icon(Icons.mic),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
