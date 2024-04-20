@@ -1,0 +1,6 @@
+{
+  "appTitle": "keyboard_sound_logger",
+  "@appTitle": {
+    "description": "The title of the application"
+  }
+}
