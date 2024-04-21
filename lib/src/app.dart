@@ -105,6 +105,7 @@ class _RecordingPageState extends State<RecordingPage> {
   bool _isRecording = false;
   File _savedRecording = File("/does_not_exist");
   String recordStatus = "Not recording";
+  String _keylogs = "";
 
   @override
   void dispose() {
@@ -160,6 +161,9 @@ class _RecordingPageState extends State<RecordingPage> {
     print("recording: $_savedRecording");
 
     if (!await _savedRecording.exists()) {
+      setState(() {
+        recordStatus = "No recording detected";
+      });
       print("No recording detected");
     } else {
       var url =
@@ -187,7 +191,11 @@ class _RecordingPageState extends State<RecordingPage> {
           setState(() {
             recordStatus = "Processing Audio...";
           });
-          print(await response.stream.bytesToString());
+          var log = await response.stream.bytesToString();
+          setState(() {
+            _keylogs = log;
+          });
+
           setState(() {
             recordStatus = "Audio processed";
           });
@@ -225,12 +233,16 @@ class _RecordingPageState extends State<RecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('KeyvesdropAI'),
+        title: const Text('KeyCatchAI'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            Text(
+              _keylogs,
+              style: TextStyle(fontSize: 14.0),
+            ),
             Text(recordStatus, style: TextStyle(fontSize: 24.0)),
             const SizedBox(height: 20),
             IconButton(
