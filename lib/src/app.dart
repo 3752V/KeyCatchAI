@@ -127,12 +127,12 @@ class _RecordingPageState extends State<RecordingPage> {
       );
       //await ScreenBrightness().setScreenBrightness(0.0);
       //await SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack);
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => BlackScreen()));
       setState(() {
         recordStatus = "Recording...";
         _isRecording = true;
         _savedRecording = filePath;
-        Navigator.push(
-            context, MaterialPageRoute(builder: (context) => BlackScreen()));
       });
     } catch (err) {
       print('Error starting recording: $err');
@@ -147,6 +147,9 @@ class _RecordingPageState extends State<RecordingPage> {
         _isRecording = false;
       });
     } catch (err) {
+      setState(() {
+        recordStatus = "Error";
+      });
       print('Error stopping recording: $err');
     }
     recordStatus = recordStatus;
@@ -159,26 +162,45 @@ class _RecordingPageState extends State<RecordingPage> {
     if (!await _savedRecording.exists()) {
       print("No recording detected");
     } else {
-      var url = Uri.parse('http://10.105.124.140:5000/upload_audio');
+      var url =
+          Uri.parse('https://zd42c7vv-5000.use.devtunnels.ms/upload_audio');
       var file = _savedRecording;
       var request = http.MultipartRequest('POST', url);
+      request.headers.addEntries(<String, String>{
+        'X-Tunnel-Authorization':
+            'tunnel eyJhbGciOiJFUzI1NiIsImtpZCI6IjJENTIwNkFFNjVBOTQ5RTlBQTlDRUQ4QTU2M0QxRTBCQzYyRUVENjIiLCJ0eXAiOiJKV1QifQ.eyJjbHVzdGVySWQiOiJ1c2UiLCJ0dW5uZWxJZCI6ImhhcHB5LWNoYWlyLXg2Zzg4c3MiLCJzY3AiOiJjb25uZWN0IiwiZXhwIjoxNzEzNzY2OTgyLCJpc3MiOiJodHRwczovL3R1bm5lbHMuYXBpLnZpc3VhbHN0dWRpby5jb20vIiwibmJmIjoxNzEzNjc5NjgyfQ.2Ta3Xk8vLL9GrIb0af2YDPEb6-mpnVFNGl5Y_2qdgLlNsAAAE8lOQSPK2qMWmI0dIryqsiRivfGpP1IXEgthoQ'
+      }.entries);
       var audioFile = await http.MultipartFile.fromPath('audio', file.path);
       request.files.add(audioFile);
       print("Analyzed!");
-      recordStatus = "Sending...";
+      setState(() {
+        recordStatus = "Sending...";
+      });
       try {
         print("sending");
         var response = await request.send();
-        recordStatus = "Sent!";
-        print("sent");
+        setState(() {
+          recordStatus = "Sent!";
+        });
+
         if (response.statusCode == 200) {
-          print("audio sent!");
+          setState(() {
+            recordStatus = "Processing Audio...";
+          });
           print(await response.stream.bytesToString());
+          setState(() {
+            recordStatus = "Audio processed";
+          });
         } else {
+          setState(() {
+            recordStatus = "Server Error";
+          });
           print("failed to send audio data");
         }
       } catch (e) {
-        recordStatus = "Error when sending request.";
+        setState(() {
+          recordStatus = "Error when sending request";
+        });
         print("Error when sending request : $e");
       }
     }
@@ -203,18 +225,50 @@ class _RecordingPageState extends State<RecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Keyboard Listener'),
+        title: const Text('KeyvesdropAI'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(recordStatus),
-            // _isRecording ? Text('Recording...') : Text('Not recording'),
+            Text(recordStatus, style: TextStyle(fontSize: 24.0)),
             const SizedBox(height: 20),
-            FloatingActionButton(
+            IconButton(
               onPressed: _isRecording ? _stopRecording : _startRecording,
-              child: _isRecording ? Icon(Icons.stop) : Icon(Icons.mic),
+              icon: _isRecording
+                  ? Container(
+                      width: 96,
+                      height: 96,
+                      decoration: const BoxDecoration(
+                          color: Colors.deepPurple,
+                          borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                              bottomLeft: Radius.circular(10),
+                              bottomRight: Radius.circular(10))),
+                      child: const Icon(
+                        Icons.stop,
+                        size: 72,
+                      ),
+                    )
+                  : Container(
+                      clipBehavior: Clip.antiAlias,
+                      width: 96,
+                      height: 96,
+                      decoration: const BoxDecoration(
+                        color: Colors.deepPurple,
+                        borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
+                            bottomLeft: Radius.circular(10),
+                            bottomRight: Radius.circular(10)),
+                      ),
+                      child: Image.asset(
+                        "assets/images/logo.png",
+                        width: 96,
+                        height: 96,
+                      ),
+                    ),
             ),
             const SizedBox(height: 50),
             SizedBox(
@@ -222,6 +276,7 @@ class _RecordingPageState extends State<RecordingPage> {
               child: FloatingActionButton(
                 onPressed: _analyzeRecording,
                 child: const Text("Analyze Recording"),
+                backgroundColor: Colors.deepPurple,
               ),
             )
           ],
