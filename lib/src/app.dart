@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -103,6 +104,7 @@ class _RecordingPageState extends State<RecordingPage> {
   FlutterSoundRecorder _audioRecorder = FlutterSoundRecorder();
   bool _isRecording = false;
   File _savedRecording = File("/does_not_exist");
+  String recordStatus = "Not recording";
 
   @override
   void dispose() {
@@ -126,6 +128,7 @@ class _RecordingPageState extends State<RecordingPage> {
       //await ScreenBrightness().setScreenBrightness(0.0);
       //await SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack);
       setState(() {
+        recordStatus = "Recording...";
         _isRecording = true;
         _savedRecording = filePath;
         Navigator.push(
@@ -140,11 +143,13 @@ class _RecordingPageState extends State<RecordingPage> {
     try {
       await _audioRecorder.stopRecorder();
       setState(() {
+        recordStatus = "Stopped recording";
         _isRecording = false;
       });
     } catch (err) {
       print('Error stopping recording: $err');
     }
+    recordStatus = recordStatus;
   }
 
   void _analyzeRecording() async {
@@ -160,9 +165,11 @@ class _RecordingPageState extends State<RecordingPage> {
       var audioFile = await http.MultipartFile.fromPath('audio', file.path);
       request.files.add(audioFile);
       print("Analyzed!");
+      recordStatus = "Sending...";
       try {
         print("sending");
         var response = await request.send();
+        recordStatus = "Sent!";
         print("sent");
         if (response.statusCode == 200) {
           print("audio sent!");
@@ -171,9 +178,11 @@ class _RecordingPageState extends State<RecordingPage> {
           print("failed to send audio data");
         }
       } catch (e) {
+        recordStatus = "Error when sending request.";
         print("Error when sending request : $e");
       }
     }
+    recordStatus = recordStatus;
   }
 
   Future<bool> requestAudioPermissions() async {
@@ -194,24 +203,25 @@ class _RecordingPageState extends State<RecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Audio Recorder'),
+        title: const Text('Audio Recorder'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            _isRecording ? Text('Recording...') : Text('Not recording'),
-            SizedBox(height: 20),
+            Text(recordStatus),
+            // _isRecording ? Text('Recording...') : Text('Not recording'),
+            const SizedBox(height: 20),
             FloatingActionButton(
               onPressed: _isRecording ? _stopRecording : _startRecording,
               child: _isRecording ? Icon(Icons.stop) : Icon(Icons.mic),
             ),
-            SizedBox(height: 50),
+            const SizedBox(height: 50),
             SizedBox(
               width: 200,
               child: FloatingActionButton(
                 onPressed: _analyzeRecording,
-                child: Text("Analyze Recording"),
+                child: const Text("Analyze Recording"),
               ),
             )
           ],
