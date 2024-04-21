@@ -203,7 +203,7 @@ class _RecordingPageState extends State<RecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Keyboard Listener'),
+        title: const Text('Keyboard Listener'),
       ),
       body: Center(
         child: Column(
