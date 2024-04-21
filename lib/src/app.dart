@@ -159,7 +159,7 @@ class _RecordingPageState extends State<RecordingPage> {
     if (!await _savedRecording.exists()) {
       print("No recording detected");
     } else {
-      var url = Uri.parse('http://10.0.2.2:5000/upload_audio');
+      var url = Uri.parse('http://10.105.124.140:5000/upload_audio');
       var file = _savedRecording;
       var request = http.MultipartRequest('POST', url);
       var audioFile = await http.MultipartFile.fromPath('audio', file.path);
@@ -203,7 +203,7 @@ class _RecordingPageState extends State<RecordingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Audio Recorder'),
+        title: Text('Keyboard Listener'),
       ),
       body: Center(
         child: Column(
@@ -255,7 +255,7 @@ class _BlackScreenState extends State<BlackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.leanBack, overlays: []);
     return SizedBox.expand(
       child: GestureDetector(
         child: Container(
